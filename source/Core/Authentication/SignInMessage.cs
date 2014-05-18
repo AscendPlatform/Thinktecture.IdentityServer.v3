@@ -48,9 +48,9 @@ namespace Thinktecture.IdentityServer.Core.Authentication
             var handler = new JwtSecurityTokenHandler();
             var parameters = new TokenValidationParameters
             {
-                AllowedAudience = audience,
+                ValidAudience = audience,
                 ValidIssuer = issuer,
-                SigningToken = new BinarySecretSecurityToken(Convert.FromBase64String(key))
+                IssuerSigningToken = new BinarySecretSecurityToken(Convert.FromBase64String(key))
             };
 
             var principal = handler.ValidateToken(jwt, parameters);
