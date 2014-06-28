@@ -142,11 +142,12 @@ namespace Thinktecture.IdentityServer.Core.Connect.Services
         protected virtual string CreateJsonWebToken(Token token, SigningCredentials credentials)
         {
             var jwt = new JwtSecurityToken(
-                token.Issuer,
-                token.Audience,
-                token.Claims,
-                new Lifetime(DateTime.UtcNow, DateTime.UtcNow.AddSeconds(token.Lifetime)),
-                credentials);
+                issuer: token.Issuer,
+                audience: token.Audience,
+                claims: token.Claims,
+                notBefore: DateTime.UtcNow, 
+                expires:  DateTime.UtcNow.AddSeconds(token.Lifetime),
+                signingCredentials: credentials);
 
             var handler = new JwtSecurityTokenHandler();
             return handler.WriteToken(jwt);

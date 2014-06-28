@@ -36,7 +36,7 @@ namespace Thinktecture.IdentityServer.Core.Authentication
                 issuer,
                 audience,
                 claims,
-                new Lifetime(DateTime.UtcNow, DateTime.UtcNow.AddSeconds(ttl)),
+                DateTime.UtcNow, DateTime.UtcNow.AddSeconds(ttl),
                 new HmacSigningCredentials(key));
 
             return new JwtSecurityTokenHandler().WriteToken(token);
@@ -52,8 +52,9 @@ namespace Thinktecture.IdentityServer.Core.Authentication
                 ValidIssuer = issuer,
                 IssuerSigningToken = new BinarySecretSecurityToken(Convert.FromBase64String(key))
             };
-
-            var principal = handler.ValidateToken(jwt, parameters);
+            SecurityToken securityToken;
+            var principal = handler.ValidateToken(jwt, parameters, out securityToken);
+          
 
             var claim = principal.FindFirst("returnUrl");
             if (claim != null)

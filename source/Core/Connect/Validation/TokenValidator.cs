@@ -80,7 +80,8 @@ namespace Thinktecture.IdentityServer.Core.Connect
 
             try
             {
-                var id = handler.ValidateToken(jwt, parameters);
+                SecurityToken validatedToken;
+                var id = handler.ValidateToken(jwt, parameters, out validatedToken);
 
                 return Task.FromResult(new TokenValidationResult
                 {
