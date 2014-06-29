@@ -2,6 +2,9 @@
 
 **current status: preview 1**
 
+NOTE: This is test setup for Azure AD and it has dependencies from asp net nightlies
+
+
 ## Overview ##
 
 IdSrv3 is a .NET-based open source implementation of an OpenID Connect provider and OAuth2 authorization server (check the [wiki](https://github.com/thinktecture/Thinktecture.IdentityServer.v3/wiki) for more info).
