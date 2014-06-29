@@ -9,28 +9,31 @@ using System.IdentityModel.Services;
 using System.IdentityModel.Tokens;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Thinktecture.IdentityServer.Core.Services;
-using Thinktecture.IdentityServer.WsFed.Validation;
-using Thinktecture.IdentityServer.Core;
 using Thinktecture.IdentityModel;
+using Thinktecture.IdentityServer.Core;
+using Thinktecture.IdentityServer.Core.Configuration;
+using Thinktecture.IdentityServer.Core.Logging;
+using Thinktecture.IdentityServer.Core.Services;
+using Thinktecture.IdentityServer.WsFederation.Validation;
 
-namespace Thinktecture.IdentityServer.WsFed.ResponseHandling
+namespace Thinktecture.IdentityServer.WsFederation.ResponseHandling
 {
     public class SignInResponseGenerator
     {
-        private ILogger _logger;
-        private ICoreSettings _settings;
-        private IUserService _users;
+        private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
+        private readonly CoreSettings _settings;
+        private readonly IUserService _users;
         
-        public SignInResponseGenerator(ILogger logger, ICoreSettings settings, IUserService users)
+        public SignInResponseGenerator(CoreSettings settings, IUserService users)
         {
-            _logger = logger;
             _settings = settings;
             _users = users;
         }
 
         public async Task<SignInResponseMessage> GenerateResponseAsync(SignInValidationResult validationResult)
         {
+            Logger.Info("Creating WS-Federation signin response");
+
             // create subject
             var outgoingSubject = await CreateSubjectAsync(validationResult);
 
@@ -76,7 +79,6 @@ namespace Thinktecture.IdentityServer.WsFed.ResponseHandling
                 }
             }
 
-            // todo: do complete mapping
             if (validationResult.Subject.GetAuthenticationMethod() == Constants.AuthenticationMethods.Password)
             {
                 mappedClaims.Add(new Claim(ClaimTypes.AuthenticationMethod, AuthenticationMethods.Password));
@@ -93,11 +95,16 @@ namespace Thinktecture.IdentityServer.WsFed.ResponseHandling
                 AppliesToAddress = validationResult.RelyingParty.Realm,
                 Lifetime = new Lifetime(DateTime.UtcNow, DateTime.UtcNow.AddMinutes(validationResult.RelyingParty.TokenLifeTime)),
                 ReplyToAddress = validationResult.ReplyUrl,
-                SigningCredentials = new X509SigningCredentials(_settings.GetSigningCertificate()),
+                SigningCredentials = new X509SigningCredentials(_settings.SigningCertificate),
                 Subject = outgoingSubject,
-                TokenIssuerName = _settings.GetIssuerUri(),
+                TokenIssuerName = _settings.IssuerUri,
                 TokenType = validationResult.RelyingParty.TokenType
             };
+
+            if (validationResult.RelyingParty.EncryptingCertificate != null)
+            {
+                descriptor.EncryptingCredentials = new X509EncryptingCredentials(validationResult.RelyingParty.EncryptingCertificate);
+            }
 
             return CreateSupportedSecurityTokenHandler().CreateToken(descriptor);
         }
@@ -112,6 +119,5 @@ namespace Thinktecture.IdentityServer.WsFed.ResponseHandling
                 new JwtSecurityTokenHandler()
             });
         }
-
     }
 }

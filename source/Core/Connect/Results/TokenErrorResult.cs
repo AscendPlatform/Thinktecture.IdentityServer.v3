@@ -9,11 +9,13 @@ using System.Net.Http.Formatting;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
+using Thinktecture.IdentityServer.Core.Logging;
 
 namespace Thinktecture.IdentityServer.Core.Connect.Results
 {
     public class TokenErrorResult : IHttpActionResult
     {
+        private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
         private readonly string _error;
 
         public TokenErrorResult(string error)
@@ -38,6 +40,7 @@ namespace Thinktecture.IdentityServer.Core.Connect.Results
                 Content = new ObjectContent<ErrorDto>(dto, new JsonMediaTypeFormatter())
             };
 
+            Logger.Info("Returning error: " + _error);
             return response;
         }
 

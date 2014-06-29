@@ -8,7 +8,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Thinktecture.IdentityModel;
+using Thinktecture.IdentityServer.Core.Configuration;
 using Thinktecture.IdentityServer.Core.Extensions;
+using Thinktecture.IdentityServer.Core.Logging;
 using Thinktecture.IdentityServer.Core.Services;
 
 namespace Thinktecture.IdentityServer.Core.Connect
@@ -16,22 +18,33 @@ namespace Thinktecture.IdentityServer.Core.Connect
     [RoutePrefix(".well-known")]
     public class DiscoveryEndpointController : ApiController
     {
-        private ICoreSettings _settings;
+        private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
+        private readonly CoreSettings _settings;
+        private readonly IScopeService _scopes;
 
-        public DiscoveryEndpointController(ICoreSettings settings)
+        public DiscoveryEndpointController(CoreSettings settings, IScopeService scopes)
         {
             _settings = settings;
+            _scopes = scopes;
         }
 
         [Route("openid-configuration")]
-        public async Task<dynamic> GetConfiguration()
+        public async Task<IHttpActionResult> GetConfiguration()
         {
-            var baseUrl = Request.GetBaseUrl(_settings.GetPublicHost());
-            var scopes = await _settings.GetScopesAsync();
+            Logger.Info("Start discovery request");
 
-            return new
+            if (!_settings.DiscoveryEndpoint.Enabled)
             {
-                issuer = _settings.GetIssuerUri(),
+                Logger.Warn("Endpoint is disabled. Aborting");
+                return NotFound();
+            }
+
+            var baseUrl = Request.GetBaseUrl(_settings.PublicHostName);
+            var scopes = await _scopes.GetScopesAsync();
+
+            return Json(new
+            {
+                issuer = _settings.IssuerUri,
                 jwks_uri = baseUrl + ".well-known/jwks",
                 authorization_endpoint = baseUrl + "connect/authorize",
                 token_endpoint = baseUrl + "connect/token",
@@ -43,13 +56,21 @@ namespace Thinktecture.IdentityServer.Core.Connect
                 grant_types_supported = Constants.SupportedGrantTypes,
                 subject_types_support = new string[] { "pairwise", "public" },
                 id_token_signing_alg_values_supported = "RS256"
-            };
+            });
         }
 
         [Route("jwks")]
-        public dynamic GetKeyData()
+        public IHttpActionResult GetKeyData()
         {
-            var cert = _settings.GetSigningCertificate();
+            Logger.Info("Start key discovery request");
+
+            if (!_settings.DiscoveryEndpoint.Enabled)
+            {
+                Logger.Warn("Endpoint is disabled. Aborting");
+                return NotFound();
+            }
+
+            var cert = _settings.SigningCertificate;
             var cert64 = Convert.ToBase64String(cert.RawData);
             var thumbprint = Base64Url.Encode(cert.GetCertHash());
 
@@ -62,7 +83,7 @@ namespace Thinktecture.IdentityServer.Core.Connect
                 x5c = new string[] { cert64 }
             };
 
-            return new { keys = new[] { key } };
+            return Json(new { keys = new[] { key } });
         }
     }
 }

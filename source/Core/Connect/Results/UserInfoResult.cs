@@ -10,12 +10,14 @@ using System.Net.Http.Formatting;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
+using Thinktecture.IdentityServer.Core.Logging;
 
 namespace Thinktecture.IdentityServer.Core.Connect.Results
 {
     public class UserInfoResult : IHttpActionResult
     {
-        private Dictionary<string, object> _claims;
+        private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
+        private readonly Dictionary<string, object> _claims;
         
         public UserInfoResult(Dictionary<string, object> claims)
         {
@@ -35,6 +37,7 @@ namespace Thinktecture.IdentityServer.Core.Connect.Results
                 Content = content
             };
 
+            Logger.Info("Returning userinfo response.");
             return message;
         }
     }

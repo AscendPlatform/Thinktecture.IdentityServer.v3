@@ -5,14 +5,11 @@
 
 using Microsoft.Owin.Security;
 using Microsoft.Owin.Security.Cookies;
+using Microsoft.Owin.Security.DataProtection;
 using Owin;
 using System;
-using System.Collections.Generic;
-using Thinktecture.IdentityServer.WsFed;
-using Thinktecture.IdentityServer.WsFed.Configuration;
-using Thinktecture.IdentityServer.WsFed.ResponseHandling;
-using Thinktecture.IdentityServer.WsFed.Services;
-using Thinktecture.IdentityServer.WsFed.Validation;
+using Thinktecture.IdentityServer.WsFederation.Configuration;
+using Thinktecture.IdentityServer.WsFederation.Hosting;
 
 namespace Thinktecture.IdentityServer.Core.Configuration
 {
@@ -20,25 +17,58 @@ namespace Thinktecture.IdentityServer.Core.Configuration
     {
         public static IAppBuilder UseWsFederationPlugin(this IAppBuilder app, WsFederationPluginOptions options)
         {
-            app.UseCookieAuthentication(new CookieAuthenticationOptions
-                {
-                    AuthenticationType = WsFederationPluginOptions.WsFedCookieAuthenticationType,
-                    AuthenticationMode = AuthenticationMode.Passive
-                });
+            if (options == null) throw new ArgumentNullException("options");
+            options.Validate();
 
-            if (options.RelyingPartyService == null)
+            var internalConfig = new InternalConfiguration();
+
+            // todo hacky!
+            internalConfig.LoginPageUrl = options.LoginPageUrl;
+
+            var settings = options.Factory.CoreSettings();
+            // todo - need a better solution for data protection
+            if (settings.DataProtector == null)
             {
-                throw new ArgumentNullException("RelyingPartyService");
+                var provider = app.GetDataProtectionProvider();
+                if (provider == null)
+                {
+                    provider = new DpapiDataProtectionProvider("idsrv3");
+                }
+
+                var funcProtector = new FuncDataProtector(
+                    (data, entropy) =>
+                    {
+                        var protector = provider.Create(entropy);
+                        return protector.Protect(data);
+                    },
+                    (data, entropy) =>
+                    {
+                        var protector = provider.Create(entropy);
+                        return protector.Unprotect(data);
+                    });
+
+                internalConfig.DataProtector = funcProtector;
+            }
+            else
+            {
+                internalConfig.DataProtector = settings.DataProtector;
             }
 
-            options.Dependencies.AddApiControllerAssembly(typeof(WsFederationController).Assembly);
-            
-            options.Dependencies.AddTypeFactory(typeof(IRelyingPartyService), options.RelyingPartyService);
-            
-            options.Dependencies.AddType(typeof(SignInValidator));
-            options.Dependencies.AddType(typeof(SignInResponseGenerator));
-            options.Dependencies.AddType(typeof(MetadataResponseGenerator));
-            options.Dependencies.AddType(typeof(CookieMiddlewareCookieService), typeof(ICookieService));
+            app.Map(options.MapPath, wsfedApp =>
+                {
+                    wsfedApp.UseCookieAuthentication(new CookieAuthenticationOptions
+                    {
+                        AuthenticationType = WsFederationPluginOptions.CookieName,
+                        AuthenticationMode = AuthenticationMode.Passive
+                    });
+
+                    wsfedApp.Use<AutofacContainerMiddleware>(AutofacConfig.Configure(options, internalConfig));
+                    Microsoft.Owin.Infrastructure.SignatureConversions.AddConversions(app);
+                    wsfedApp.UseWebApi(WebApiConfig.Configure());
+                });
+
+            // todo
+            //options.Configuration.AddSignOutCallbackUrl("/wsfed/signout");
 
             return app;
         }

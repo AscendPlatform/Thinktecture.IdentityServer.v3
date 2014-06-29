@@ -11,11 +11,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Thinktecture.IdentityServer.Core.Connect.Models;
+using Thinktecture.IdentityServer.Core.Logging;
 
 namespace Thinktecture.IdentityServer.Core.Protocols.Connect.Results
 {
     public class TokenResult : IHttpActionResult
     {
+        private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
         private readonly TokenResponse _response;
 
         public TokenResult(TokenResponse response)
@@ -46,6 +48,7 @@ namespace Thinktecture.IdentityServer.Core.Protocols.Connect.Results
                 Content = new ObjectContent<TokenResponseDto>(dto, formatter)
             };
 
+            Logger.Info("Returning token response.");
             return response;
         }
 

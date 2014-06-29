@@ -11,9 +11,10 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using Thinktecture.IdentityServer.Core.Assets;
 using Thinktecture.IdentityServer.Core.Authentication;
+using Thinktecture.IdentityServer.Core.Configuration;
 using Thinktecture.IdentityServer.Core.Connect.Models;
+using Thinktecture.IdentityServer.Core.Logging;
 using Thinktecture.IdentityServer.Core.Models;
-using Thinktecture.IdentityServer.Core.Services;
 
 namespace Thinktecture.IdentityServer.Core.Connect
 {
@@ -21,22 +22,23 @@ namespace Thinktecture.IdentityServer.Core.Connect
     [HostAuthentication("idsrv")]
     public class AuthorizeEndpointController : ApiController
     {
-        private readonly ILogger _logger;
-        private readonly ICoreSettings _settings;
+        private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
+        private readonly CoreSettings _settings;
 
         private readonly AuthorizeRequestValidator _validator;
         private readonly AuthorizeResponseGenerator _responseGenerator;
         private readonly AuthorizeInteractionResponseGenerator _interactionGenerator;
+        private readonly InternalConfiguration _internalConfiguration;
         
         public AuthorizeEndpointController(
-            ILogger logger, 
             AuthorizeRequestValidator validator, 
             AuthorizeResponseGenerator responseGenerator, 
             AuthorizeInteractionResponseGenerator interactionGenerator, 
-            ICoreSettings settings)
+            CoreSettings settings,
+            InternalConfiguration internalConfiguration)
         {
-            _logger = logger;
             _settings = settings;
+            _internalConfiguration = internalConfiguration;
         
             _responseGenerator = responseGenerator;
             _interactionGenerator = interactionGenerator;
@@ -46,12 +48,18 @@ namespace Thinktecture.IdentityServer.Core.Connect
         [Route("authorize", Name="authorize")]
         public async Task<IHttpActionResult> Get(HttpRequestMessage request)
         {
+            Logger.Info("Start authorize request");
+
             return await ProcessRequestAsync(request.RequestUri.ParseQueryString());
         }
 
         protected async Task<IHttpActionResult> ProcessRequestAsync(NameValueCollection parameters, UserConsent consent = null)
-        {
-            _logger.Start("OIDC authorize endpoint.");
+        {   
+            if (!_settings.AuthorizeEndpoint.Enabled)
+            {
+                Logger.Warn("Endpoint is disabled. Aborting");
+                return NotFound();
+            }
             
             ///////////////////////////////////////////////////////////////
             // validate protocol parameters
@@ -112,6 +120,7 @@ namespace Thinktecture.IdentityServer.Core.Connect
 
             if (interaction.IsConsent)
             {
+                Logger.Info("Showing consent screen");
                 return CreateConsentResult(request, request.Raw, interaction.ConsentError);
             }
 
@@ -122,6 +131,7 @@ namespace Thinktecture.IdentityServer.Core.Connect
         [HttpPost]
         public Task<IHttpActionResult> PostConsent(UserConsent model)
         {
+            Logger.Info("Resuming from consent, restarting validation");
             return ProcessRequestAsync(Request.RequestUri.ParseQueryString(), model ?? new UserConsent());
         }
 
@@ -146,7 +156,7 @@ namespace Thinktecture.IdentityServer.Core.Connect
                 return await CreateCodeFlowAuthorizeResponseAsync(request);
             }
 
-            _logger.Error("Unsupported flow. Aborting.");
+            Logger.Error("Unsupported flow. Aborting.");
             throw new InvalidOperationException("Unsupported flow");
         }
 
@@ -181,7 +191,7 @@ namespace Thinktecture.IdentityServer.Core.Connect
                 Request, 
                 new LayoutModel
                 {
-                    Server = _settings.GetSiteName(),
+                    Server = _settings.SiteName,
                     ErrorMessage = errorMessage,
                     Page = "consent",
                     Username = name,
@@ -190,7 +200,7 @@ namespace Thinktecture.IdentityServer.Core.Connect
                 });
         }
 
-        IHttpActionResult RedirectToLogin(SignInMessage message, NameValueCollection parameters, ICoreSettings settings)
+        IHttpActionResult RedirectToLogin(SignInMessage message, NameValueCollection parameters, CoreSettings settings)
         {
             message = message ?? new SignInMessage();
 
@@ -198,7 +208,7 @@ namespace Thinktecture.IdentityServer.Core.Connect
             var url = new Uri(Request.RequestUri, path);
             message.ReturnUrl = url.AbsoluteUri;
             
-            return new LoginResult(message, this.Request, settings);
+            return new LoginResult(message, this.Request, settings, _internalConfiguration);
         }
     }
 }

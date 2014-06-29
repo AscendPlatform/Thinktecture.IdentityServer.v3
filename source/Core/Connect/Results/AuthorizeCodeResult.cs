@@ -10,11 +10,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Thinktecture.IdentityServer.Core.Connect.Models;
+using Thinktecture.IdentityServer.Core.Logging;
 
 namespace Thinktecture.IdentityServer.Core.Connect.Results
 {
     public class AuthorizeCodeResult : IHttpActionResult
     {
+        private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
         private readonly AuthorizeResponse _response;
 
         public AuthorizeCodeResult(AuthorizeResponse response)
@@ -39,6 +41,8 @@ namespace Thinktecture.IdentityServer.Core.Connect.Results
             }
 
             responseMessage.Headers.Location = new Uri(url);
+            Logger.Info("Redirecting to: " + url);
+
             return responseMessage;
         }
     }

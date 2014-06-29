@@ -11,11 +11,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Thinktecture.IdentityServer.Core.Connect.Models;
+using Thinktecture.IdentityServer.Core.Logging;
 
 namespace Thinktecture.IdentityServer.Core.Connect.Results
 {
     public class AuthorizeImplicitFragmentResult : IHttpActionResult
     {
+        private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
         private readonly AuthorizeResponse _response;
 
         public AuthorizeImplicitFragmentResult(AuthorizeResponse response)
@@ -58,6 +60,9 @@ namespace Thinktecture.IdentityServer.Core.Connect.Results
 
             url = string.Format("{0}#{1}", url, query.ToQueryString());
             responseMessage.Headers.Location = new Uri(url);
+            
+            Logger.Info("Redirecting to " + _response.RedirectUri.AbsoluteUri);
+            
             return responseMessage;
         }
     }

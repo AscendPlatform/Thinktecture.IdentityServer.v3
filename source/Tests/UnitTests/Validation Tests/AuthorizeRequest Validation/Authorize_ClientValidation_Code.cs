@@ -6,8 +6,8 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Specialized;
 using System.Threading.Tasks;
 using Thinktecture.IdentityServer.Core;
+using Thinktecture.IdentityServer.Core.Configuration;
 using Thinktecture.IdentityServer.Core.Connect;
-using Thinktecture.IdentityServer.Core.Services;
 using UnitTests.Plumbing;
 
 namespace UnitTests
@@ -15,8 +15,7 @@ namespace UnitTests
     [TestClass]
     public class Authorize_ClientValidation_Code
     {
-        ILogger _logger = new DebugLogger();
-        ICoreSettings _settings = new TestSettings();
+        CoreSettings _settings = new TestSettings();
 
         [TestMethod]
         [TestCategory("AuthorizeRequest Client Validation - Code")]
@@ -28,7 +27,7 @@ namespace UnitTests
             parameters.Add(Constants.AuthorizeRequest.RedirectUri, "https://server/cb");
             parameters.Add(Constants.AuthorizeRequest.ResponseType, Constants.ResponseTypes.Code);
 
-            var validator = ValidatorFactory.CreateAuthorizeValidator();
+            var validator = Factory.CreateAuthorizeValidator();
             var protocolResult = validator.ValidateProtocol(parameters);
             Assert.IsFalse(protocolResult.IsError);
 
@@ -48,7 +47,7 @@ namespace UnitTests
             parameters.Add(Constants.AuthorizeRequest.RedirectUri, "https://invalid");
             parameters.Add(Constants.AuthorizeRequest.ResponseType, Constants.ResponseTypes.Code);
 
-            var validator = ValidatorFactory.CreateAuthorizeValidator();
+            var validator = Factory.CreateAuthorizeValidator();
             var protocolResult = validator.ValidateProtocol(parameters);
             Assert.IsFalse(protocolResult.IsError);
 
@@ -69,7 +68,7 @@ namespace UnitTests
             parameters.Add(Constants.AuthorizeRequest.ResponseType, Constants.ResponseTypes.IdToken);
             parameters.Add(Constants.AuthorizeRequest.Nonce, "abc");
 
-            var validator = ValidatorFactory.CreateAuthorizeValidator();
+            var validator = Factory.CreateAuthorizeValidator();
             var protocolResult = validator.ValidateProtocol(parameters);
             Assert.IsFalse(protocolResult.IsError);
 
@@ -90,7 +89,7 @@ namespace UnitTests
             parameters.Add(Constants.AuthorizeRequest.ResponseType, Constants.ResponseTypes.IdTokenToken);
             parameters.Add(Constants.AuthorizeRequest.Nonce, "abc");
 
-            var validator = ValidatorFactory.CreateAuthorizeValidator();
+            var validator = Factory.CreateAuthorizeValidator();
             var protocolResult = validator.ValidateProtocol(parameters);
             Assert.IsFalse(protocolResult.IsError);
 
@@ -110,7 +109,7 @@ namespace UnitTests
             parameters.Add(Constants.AuthorizeRequest.RedirectUri, "https://server/cb");
             parameters.Add(Constants.AuthorizeRequest.ResponseType, Constants.ResponseTypes.Code);
 
-            var validator = ValidatorFactory.CreateAuthorizeValidator();
+            var validator = Factory.CreateAuthorizeValidator();
             var protocolResult = validator.ValidateProtocol(parameters);
             Assert.IsFalse(protocolResult.IsError);
 
@@ -130,7 +129,7 @@ namespace UnitTests
             parameters.Add(Constants.AuthorizeRequest.RedirectUri, "https://server/cb");
             parameters.Add(Constants.AuthorizeRequest.ResponseType, Constants.ResponseTypes.Code);
 
-            var validator = ValidatorFactory.CreateAuthorizeValidator();
+            var validator = Factory.CreateAuthorizeValidator();
             var protocolResult = validator.ValidateProtocol(parameters);
             Assert.IsFalse(protocolResult.IsError);
 

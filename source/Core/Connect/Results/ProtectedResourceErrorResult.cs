@@ -9,11 +9,13 @@ using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
+using Thinktecture.IdentityServer.Core.Logging;
 
 namespace Thinktecture.IdentityServer.Core.Connect.Results
 {
     public class ProtectedResourceErrorResult : IHttpActionResult
     {
+        private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
         private readonly string _error;
         private readonly string _errorDescription;
 
@@ -40,6 +42,7 @@ namespace Thinktecture.IdentityServer.Core.Connect.Results
             var header = new AuthenticationHeaderValue("Bearer", parameter);
             var response = new HttpResponseMessage(HttpStatusCode.Unauthorized);
 
+            Logger.Info("Returning error: " + _error);
             return response;
         }
     }

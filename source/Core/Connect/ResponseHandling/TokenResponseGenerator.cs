@@ -5,19 +5,21 @@
 
 using System;
 using System.Threading.Tasks;
+using Thinktecture.IdentityServer.Core.Configuration;
 using Thinktecture.IdentityServer.Core.Connect.Models;
 using Thinktecture.IdentityServer.Core.Connect.Services;
-using Thinktecture.IdentityServer.Core.Services;
+using Thinktecture.IdentityServer.Core.Logging;
 
 namespace Thinktecture.IdentityServer.Core.Connect
 {
     public class TokenResponseGenerator
     {
-        private ICoreSettings _settings;
-        private ITokenService _tokenService;
-        private ITokenHandleStore _tokenHandles;
+        private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
+        private readonly CoreSettings _settings;
+        private readonly ITokenService _tokenService;
+        private readonly ITokenHandleStore _tokenHandles;
 
-        public TokenResponseGenerator(ITokenService tokenService, ITokenHandleStore tokenHandles, ICoreSettings settings, IAuthorizationCodeStore codes)
+        public TokenResponseGenerator(ITokenService tokenService, ITokenHandleStore tokenHandles, CoreSettings settings, IAuthorizationCodeStore codes)
         {
             _settings = settings;
             _tokenService = tokenService;
@@ -26,12 +28,15 @@ namespace Thinktecture.IdentityServer.Core.Connect
 
         public async Task<TokenResponse> ProcessAsync(ValidatedTokenRequest request)
         {
+            Logger.Info("Creating token response");
+
             if (request.GrantType == Constants.GrantTypes.AuthorizationCode)
             {
                 return await ProcessAuthorizationCodeRequestAsync(request);
             }
             else if (request.GrantType == Constants.GrantTypes.ClientCredentials ||
-                     request.GrantType == Constants.GrantTypes.Password)
+                     request.GrantType == Constants.GrantTypes.Password ||
+                     request.Assertion.IsPresent())
             {
                 return await ProcessTokenRequestAsync(request);
             }

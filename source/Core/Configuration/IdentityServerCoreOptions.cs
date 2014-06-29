@@ -5,7 +5,6 @@
 
 using Owin;
 using System;
-using System.Collections.Generic;
 
 namespace Thinktecture.IdentityServer.Core.Configuration
 {
@@ -13,7 +12,8 @@ namespace Thinktecture.IdentityServer.Core.Configuration
     {
         public IdentityServerServiceFactory Factory { get; set; }
         public AuthenticationOptions AuthenticationOptions { get; set; }
-        public Action<IAppBuilder, string> SocialIdentityProviderConfiguration { get; set; }
-        public Action<IAppBuilder, PluginDependencies> PluginConfiguration { get; set; }
+        
+        public Action<IAppBuilder, string> AdditionalIdentityProviderConfiguration { get; set; }
+        public Action<IAppBuilder, IdentityServerCoreOptions> ConfigurePlugins { get; set; }
     }
 }

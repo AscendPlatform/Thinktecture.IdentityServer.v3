@@ -1,38 +1,37 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Thinktecture.IdentityServer.Core.Configuration;
-using Thinktecture.IdentityServer.WsFed.Services;
 
-namespace Thinktecture.IdentityServer.WsFed.Configuration
+namespace Thinktecture.IdentityServer.WsFederation.Configuration
 {
     public class WsFederationPluginOptions
     {
-        PluginDependencies _dependencies;
+        public const string CookieName = "WsFedTracking";
 
-        public WsFederationPluginOptions(PluginDependencies dependencies)
+        public WsFederationServiceFactory Factory { get; set; }
+        public string MapPath { get; set; }
+        public string LoginPageUrl { get; set; }
+        public string LogoutPageUrl { get; set; }
+
+        public WsFederationPluginOptions()
         {
-            if (dependencies == null)
-            {
-                throw new ArgumentNullException("dependencies");
-            }
-            
-            _dependencies = dependencies;
+            MapPath = "/wsfed";
         }
 
-        public const string WsFedCookieAuthenticationType = "WsFedSignInOut";
-
-        public PluginDependencies Dependencies
+        public void Validate()
         {
-            get
+            if (Factory == null)
             {
-                return _dependencies;
+                throw new ArgumentNullException("Factory");
+            }
+
+            if (string.IsNullOrWhiteSpace(LoginPageUrl))
+            {
+                throw new ArgumentException("LoginPageUrl is not set");
+            }
+
+            if (string.IsNullOrWhiteSpace(LogoutPageUrl))
+            {
+                throw new ArgumentException("LogoutPageUrl is not set");
             }
         }
-
-        public Func<IRelyingPartyService> RelyingPartyService { get; set; }
-        public bool EnabledFederationMetadata { get; set; }
     }
 }

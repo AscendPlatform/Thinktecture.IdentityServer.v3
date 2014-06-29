@@ -6,34 +6,35 @@
 using Autofac;
 using Autofac.Integration.WebApi;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection;
 using Thinktecture.IdentityServer.Core.Connect;
 using Thinktecture.IdentityServer.Core.Connect.Services;
+using Thinktecture.IdentityServer.Core.Hosting;
 using Thinktecture.IdentityServer.Core.Services;
 
 namespace Thinktecture.IdentityServer.Core.Configuration
 {
-    public static class AutofacConfig
+    internal static class AutofacConfig
     {
-        public static IContainer Configure(IdentityServerCoreOptions options, PluginDependencies pluginDepencies)
+        public static IContainer Configure(IdentityServerCoreOptions options, InternalConfiguration internalConfig)
         {
             if (options == null) throw new ArgumentNullException("options");
             if (options.Factory == null) throw new InvalidOperationException("null factory");
+            if (internalConfig == null) throw new ArgumentNullException("internalConfig");
 
             IdentityServerServiceFactory fact = options.Factory;
             fact.Validate();
 
             var builder = new ContainerBuilder();
 
+            builder.RegisterInstance(internalConfig).AsSelf();
+
             // mandatory from factory
             builder.Register(ctx => fact.AuthorizationCodeStore()).As<IAuthorizationCodeStore>();
-            builder.Register(ctx => fact.CoreSettings()).As<ICoreSettings>();
-            builder.Register(ctx => fact.Logger()).As<ILogger>();
+            builder.Register(ctx => fact.CoreSettings()).As<CoreSettings>();
             builder.Register(ctx => fact.TokenHandleStore()).As<ITokenHandleStore>();
             builder.Register(ctx => fact.UserService()).As<IUserService>();
+            builder.Register(ctx => fact.ScopeService()).As<IScopeService>();
+            builder.Register(ctx => fact.ClientService()).As<IClientService>();
             builder.Register(ctx => fact.ConsentService()).As<IConsentService>();
 
             // optional from factory
@@ -82,6 +83,15 @@ namespace Thinktecture.IdentityServer.Core.Configuration
                 builder.RegisterType<DefaultExternalClaimsFilter>().As<IExternalClaimsFilter>();
             }
 
+            if (fact.CustomTokenValidator != null)
+            {
+                builder.Register(ctx => fact.CustomTokenValidator()).As<ICustomTokenValidator>();
+            }
+            else
+            {
+                builder.RegisterType<DefaultCustomTokenValidator>().As<ICustomTokenValidator>();
+            }
+
             // validators
             builder.RegisterType<TokenRequestValidator>();
             builder.RegisterType<AuthorizeRequestValidator>();
@@ -94,46 +104,15 @@ namespace Thinktecture.IdentityServer.Core.Configuration
             builder.RegisterType<AuthorizeInteractionResponseGenerator>();
             builder.RegisterType<UserInfoResponseGenerator>();
 
+            // general services
+            builder.RegisterType<CookieMiddlewareTrackingCookieService>().As<ITrackingCookieService>();
+
             // for authentication
             var authenticationOptions = options.AuthenticationOptions ?? new AuthenticationOptions();
             builder.RegisterInstance(authenticationOptions).AsSelf();
 
             // load core controller
             builder.RegisterApiControllers(typeof(AuthorizeEndpointController).Assembly);
-
-            if (pluginDepencies != null)
-            {
-                if (pluginDepencies.ApiControllerAssemblies != null)
-                {
-                    foreach (var asm in pluginDepencies.ApiControllerAssemblies)
-                    {
-                        builder.RegisterApiControllers(asm);
-                    }
-                }
-
-                if (pluginDepencies.Types != null)
-                {
-                    foreach (var type in pluginDepencies.Types)
-                    {
-                        if (type.Value == null)
-                        {
-                            builder.RegisterType(type.Key);
-                        }
-                        else
-                        {
-                            builder.RegisterType(type.Key).As(type.Value);
-                        }
-                    }
-                }
-
-                if (pluginDepencies.Factories != null)
-                {
-                    foreach (var factory in pluginDepencies.Factories)
-                    {
-                        builder.Register(ctx => factory.Value()).As(factory.Key);
-                    }
-                }
-            }
 
             return builder.Build();
         }

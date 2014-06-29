@@ -11,11 +11,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Thinktecture.IdentityServer.Core.Connect.Models;
+using Thinktecture.IdentityServer.Core.Logging;
 
 namespace Thinktecture.IdentityServer.Core.Connect.Results
 {
     public class AuthorizeImplicitFormPostResult : IHttpActionResult
     {
+        private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
         private readonly AuthorizeResponse _response;
 
         public AuthorizeImplicitFormPostResult(AuthorizeResponse response)
@@ -68,6 +70,7 @@ namespace Thinktecture.IdentityServer.Core.Connect.Results
                 Content = content
             };
 
+            Logger.Info("Posting to " + _response.RedirectUri.AbsoluteUri);
             return message;
         }
     }

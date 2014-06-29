@@ -7,17 +7,16 @@ using System.IdentityModel.Metadata;
 using System.IdentityModel.Protocols.WSTrust;
 using System.IdentityModel.Tokens;
 using Thinktecture.IdentityModel.Constants;
-using Thinktecture.IdentityServer.Core.Services;
+using Thinktecture.IdentityServer.Core.Configuration;
 
-namespace Thinktecture.IdentityServer.WsFed.ResponseHandling
+namespace Thinktecture.IdentityServer.WsFederation.ResponseHandling
 {
     public class MetadataResponseGenerator
     {
-        private ILogger _logger;
-        private ICoreSettings _settings;
-        public MetadataResponseGenerator(ILogger logger, ICoreSettings settings)
+        private CoreSettings _settings;
+
+        public MetadataResponseGenerator(CoreSettings settings)
         {
-            _logger = logger;
             _settings = settings;
         }
 
@@ -25,9 +24,9 @@ namespace Thinktecture.IdentityServer.WsFed.ResponseHandling
         {
             var tokenServiceDescriptor = GetTokenServiceDescriptor(wsfedEndpoint);
 
-            var id = new EntityId(_settings.GetIssuerUri());
+            var id = new EntityId(_settings.IssuerUri);
             var entity = new EntityDescriptor(id);
-            entity.SigningCredentials = new X509SigningCredentials(_settings.GetSigningCertificate());
+            entity.SigningCredentials = new X509SigningCredentials(_settings.SigningCertificate);
             entity.RoleDescriptors.Add(tokenServiceDescriptor);
 
             return entity;
@@ -36,7 +35,7 @@ namespace Thinktecture.IdentityServer.WsFed.ResponseHandling
         private SecurityTokenServiceDescriptor GetTokenServiceDescriptor(string wsfedEndpoint)
         {
             var tokenService = new SecurityTokenServiceDescriptor();
-            tokenService.ServiceDescription = _settings.GetSiteName();
+            tokenService.ServiceDescription = _settings.SiteName;
             tokenService.Keys.Add(GetSigningKeyDescriptor());
 
             tokenService.PassiveRequestorEndpoints.Add(new EndpointReference(wsfedEndpoint));
@@ -53,7 +52,7 @@ namespace Thinktecture.IdentityServer.WsFed.ResponseHandling
 
         private KeyDescriptor GetSigningKeyDescriptor()
         {
-            var certificate = _settings.GetSigningCertificate();
+            var certificate = _settings.SigningCertificate;
 
             var clause = new X509SecurityToken(certificate).CreateKeyIdentifierClause<X509RawDataKeyIdentifierClause>();
             var key = new KeyDescriptor(new SecurityKeyIdentifier(clause));
@@ -61,25 +60,5 @@ namespace Thinktecture.IdentityServer.WsFed.ResponseHandling
 
             return key;
         }
-
-        //private XmlDictionaryReader CreateMetadataReader(Uri mexAddress)
-        //{
-        //    var metadataSet = new MetadataSet();
-        //    var metadataReference = new MetadataReference(new EndpointAddress(mexAddress), AddressingVersion.WSAddressing10);
-        //    var metadataSection = new MetadataSection(MetadataSection.MetadataExchangeDialect, null, metadataReference);
-        //    metadataSet.MetadataSections.Add(metadataSection);
-
-        //    var sb = new StringBuilder();
-        //    var w = new StringWriter(sb, CultureInfo.InvariantCulture);
-        //    var writer = XmlWriter.Create(w);
-
-        //    metadataSet.WriteTo(writer);
-        //    writer.Flush();
-        //    w.Flush();
-
-        //    var input = new StringReader(sb.ToString());
-        //    var reader = new XmlTextReader(input);
-        //    return XmlDictionaryReader.CreateDictionaryReader(reader);
-        //}
     }
 }

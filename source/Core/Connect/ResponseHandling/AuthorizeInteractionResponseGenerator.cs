@@ -8,6 +8,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Thinktecture.IdentityServer.Core.Authentication;
+using Thinktecture.IdentityServer.Core.Configuration;
 using Thinktecture.IdentityServer.Core.Connect.Models;
 using Thinktecture.IdentityServer.Core.Services;
 
@@ -16,15 +17,15 @@ namespace Thinktecture.IdentityServer.Core.Connect
     public class AuthorizeInteractionResponseGenerator
     {
         private SignInMessage _signIn;
-        private ICoreSettings _core;
+        private CoreSettings _settings;
         
         private IConsentService _consent;
 
-        public AuthorizeInteractionResponseGenerator(ICoreSettings core, IConsentService consent)
+        public AuthorizeInteractionResponseGenerator(CoreSettings settings, IConsentService consent)
         {
             _signIn = new SignInMessage();
             
-            _core = core;
+            _settings = settings;
             _consent = consent;
         }
 
@@ -40,6 +41,18 @@ namespace Thinktecture.IdentityServer.Core.Connect
             if (request.UiLocales.IsPresent())
             {
                 _signIn.UILocales = request.UiLocales;
+            }
+
+            if (request.PromptMode == Constants.PromptModes.Login)
+            {
+                // remove prompt so when we redirect back in from login page
+                // we won't think we need to force a prompt again
+                request.Raw.Remove(Constants.AuthorizeRequest.Prompt);
+                return new InteractionResponse
+                {
+                    IsLogin = true,
+                    SignInMessage = _signIn
+                };
             }
 
             // unauthenticated user
@@ -62,18 +75,6 @@ namespace Thinktecture.IdentityServer.Core.Connect
                     };
                 }
 
-                return new InteractionResponse
-                {
-                    IsLogin = true,
-                    SignInMessage = _signIn
-                };
-            }
-
-            if (request.PromptMode == Constants.PromptModes.Login)
-            {
-                // remove prompt so when we redirect back in from login page
-                // we won't think we need to force a prompt again
-                request.Raw.Remove(Constants.AuthorizeRequest.Prompt);
                 return new InteractionResponse
                 {
                     IsLogin = true,

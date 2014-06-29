@@ -3,81 +3,98 @@
  * see license
  */
 using System.IdentityModel.Services;
-using System.Net.Http;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Thinktecture.IdentityServer.Core;
 using Thinktecture.IdentityServer.Core.Authentication;
+using Thinktecture.IdentityServer.Core.Configuration;
 using Thinktecture.IdentityServer.Core.Extensions;
+using Thinktecture.IdentityServer.Core.Logging;
 using Thinktecture.IdentityServer.Core.Services;
-using Thinktecture.IdentityServer.WsFed.ResponseHandling;
-using Thinktecture.IdentityServer.WsFed.Results;
-using Thinktecture.IdentityServer.WsFed.Services;
-using Thinktecture.IdentityServer.WsFed.Validation;
+using Thinktecture.IdentityServer.WsFederation.Configuration;
+using Thinktecture.IdentityServer.WsFederation.ResponseHandling;
+using Thinktecture.IdentityServer.WsFederation.Results;
+using Thinktecture.IdentityServer.WsFederation.Validation;
 
-namespace Thinktecture.IdentityServer.WsFed
+namespace Thinktecture.IdentityServer.WsFederation
 {
     [HostAuthentication("idsrv")]
+    [RoutePrefix("")]
     public class WsFederationController : ApiController
     {
-        private readonly ICoreSettings _settings;
-        private ILogger _logger;
-  
-        private SignInValidator _validator;
-        private SignInResponseGenerator _signInResponseGenerator;
-        private MetadataResponseGenerator _metadataResponseGenerator;
-        private ICookieService _cookies;
+        private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
 
-        public WsFederationController(ICoreSettings settings, IUserService users, ILogger logger, SignInValidator validator, SignInResponseGenerator signInResponseGenerator, MetadataResponseGenerator metadataResponseGenerator, ICookieService cookies)
+        private readonly CoreSettings _settings;
+        private readonly WsFederationPluginOptions _wsfedOptions;
+        private readonly SignInValidator _validator;
+        private readonly SignInResponseGenerator _signInResponseGenerator;
+        private readonly MetadataResponseGenerator _metadataResponseGenerator;
+        private readonly ITrackingCookieService _cookies;
+        private readonly InternalConfiguration _internalConfig;
+
+        public WsFederationController(CoreSettings settings, IUserService users, SignInValidator validator, SignInResponseGenerator signInResponseGenerator, MetadataResponseGenerator metadataResponseGenerator, ITrackingCookieService cookies, InternalConfiguration internalConfig, WsFederationPluginOptions wsFedOptions)
         {
             _settings = settings;
-            _logger = logger;
-
+            _internalConfig = internalConfig;
+            _wsfedOptions = wsFedOptions;
             _validator = validator;
             _signInResponseGenerator = signInResponseGenerator;
             _metadataResponseGenerator = metadataResponseGenerator;
             _cookies = cookies;
         }
 
-        [Route("wsfed")]
+        [Route("")]
         public async Task<IHttpActionResult> Get()
         {
+            Logger.Info("Start WS-Federation request");
+            Logger.Debug(Request.RequestUri.AbsoluteUri);
+
             WSFederationMessage message;
             if (WSFederationMessage.TryCreateFromUri(Request.RequestUri, out message))
             {
                 var signin = message as SignInRequestMessage;
                 if (signin != null)
                 {
+                    Logger.Info("WsFederation signin request");
                     return await ProcessSignInAsync(signin);
                 }
 
                 var signout = message as SignOutRequestMessage;
                 if (signout != null)
                 {
-                    // todo: call main signout page which in turn calls back the ws-fed specific one 
-                    var ctx = Request.GetOwinContext();
-                    ctx.Authentication.SignOut(Constants.PrimaryAuthenticationType);
-                    
-                    return await SignOutCallback();
+                    Logger.Info("WsFederation signout request");
+
+                    // todo
+                    return Redirect(_wsfedOptions.LogoutPageUrl);
                 }
             }
 
             return BadRequest("Invalid WS-Federation request");
         }
 
-        [Route("wsfed/signout")]
+        [Route("signout")]
         [HttpGet]
         public async Task<IHttpActionResult> SignOutCallback()
         {
-            var urls = await _cookies.GetValuesAndDeleteCookieAsync();
+            Logger.Info("WS-Federation signout callback");
+
+            var urls = await _cookies.GetValuesAndDeleteCookieAsync(WsFederationPluginOptions.CookieName);
             return new SignOutResult(urls);
         }
 
-        [Route("wsfed/metadata")]
+        [Route("metadata")]
         public IHttpActionResult GetMetadata()
         {
-            var ep = Request.GetBaseUrl(_settings.GetPublicHost()) + "wsfed";
+            Logger.Info("WS-Federation metadata request");
+
+            if (_wsfedOptions.Factory.WsFederationSettings().MetadataEndpoint.Enabled == false)
+            {
+                Logger.Warn("Endpoint is disabled. Aborting.");
+                return NotFound();
+            }
+
+            var ep = Request.GetBaseUrl(_settings.PublicHostName) + "wsfed";
             var entity = _metadataResponseGenerator.Generate(ep);
 
             return new MetadataResult(entity);
@@ -89,7 +106,7 @@ namespace Thinktecture.IdentityServer.WsFed
 
             if (result.IsSignInRequired)
             {
-                return RedirectToLogin(_settings);
+                return RedirectToLogin(_settings, result);
             }
             if (result.IsError)
             {
@@ -97,17 +114,23 @@ namespace Thinktecture.IdentityServer.WsFed
             }
 
             var responseMessage = await _signInResponseGenerator.GenerateResponseAsync(result);
-            await _cookies.AddValueAsync(result.ReplyUrl);
+            await _cookies.AddValueAsync(WsFederationPluginOptions.CookieName, result.ReplyUrl);
 
             return new SignInResult(responseMessage);
         }
 
-        IHttpActionResult RedirectToLogin(ICoreSettings settings)
+        IHttpActionResult RedirectToLogin(CoreSettings settings, SignInValidationResult result)
         {
             var message = new SignInMessage();
             message.ReturnUrl = Request.RequestUri.AbsoluteUri;
 
-            return new LoginResult(message, this.Request, settings);
+            if (result.HomeRealm.IsPresent())
+            {
+                message.IdP = result.HomeRealm;
+            }
+
+            var url = LoginResult.GetRedirectUrl(message, this.Request, settings, _internalConfig);
+            return Redirect(url);
         }
     }
 }

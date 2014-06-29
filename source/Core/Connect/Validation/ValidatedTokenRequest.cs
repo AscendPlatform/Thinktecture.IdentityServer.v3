@@ -6,9 +6,9 @@
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Security.Claims;
+using Thinktecture.IdentityServer.Core.Configuration;
 using Thinktecture.IdentityServer.Core.Connect.Models;
 using Thinktecture.IdentityServer.Core.Models;
-using Thinktecture.IdentityServer.Core.Services;
 
 namespace Thinktecture.IdentityServer.Core.Connect
 {
@@ -17,7 +17,7 @@ namespace Thinktecture.IdentityServer.Core.Connect
         public NameValueCollection Raw { get; set; }
         public ClaimsPrincipal Subject { get; set; }
 
-        public ICoreSettings Settings { get; set; }
+        public CoreSettings Settings { get; set; }
         public Client Client { get; set; }
         public string GrantType { get; set; }
         public AuthorizationCode AuthorizationCode { get; set; }

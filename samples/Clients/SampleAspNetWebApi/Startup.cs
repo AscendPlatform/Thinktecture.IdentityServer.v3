@@ -1,10 +1,10 @@
-﻿using System.Linq;
-using Microsoft.Owin;
+﻿using Microsoft.Owin;
 using Owin;
-using Thinktecture.IdentityModel;
 using System.IdentityModel.Tokens;
+using System.Linq;
+using Thinktecture.IdentityModel;
 using Thinktecture.IdentityModel.Tokens;
-using IdSrvReferenceTokenValidation;
+using Thinktecture.IdentityServer.v3.AccessTokenValidation;
 
 [assembly: OwinStartup(typeof(SampleAspNetWebApi.Startup))]
 
@@ -16,12 +16,15 @@ namespace SampleAspNetWebApi
         {
             JwtSecurityTokenHandler.InboundClaimTypeMap = ClaimMappings.None;
 
-            app.UseJsonWebToken(
-                issuer:    "https://idsrv3.com",
-                audience:  "https://idsrv3.com/resources",
-                signingKey: X509.LocalMachine.TrustedPeople.SubjectDistinguishedName.Find("CN=idsrv3test", false).First());
+            // for self contained tokens
+            app.UseIdentitiyServerSelfContainedToken(new SelfContainedTokenValidationOptions
+                {
+                    IssuerName = "https://idsrv3.com",
+                    SigningCertificate = X509.LocalMachine.TrustedPeople.SubjectDistinguishedName.Find("CN=idsrv3test", false).First()
+                });
 
-            app.UseIdentitiyServerReferenceTokens(new ReferenceTokenValidationOptions
+            // for reference tokens
+            app.UseIdentitiyServerReferenceToken(new ReferenceTokenValidationOptions
                 {
                     TokenValidationEndpoint = "http://localhost:3333/core/connect/accessTokenValidation"
                 });

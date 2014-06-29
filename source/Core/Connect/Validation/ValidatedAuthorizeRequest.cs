@@ -7,9 +7,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Security.Claims;
-using Thinktecture.IdentityServer.Core.Connect.Models;
+using Thinktecture.IdentityServer.Core.Configuration;
 using Thinktecture.IdentityServer.Core.Models;
-using Thinktecture.IdentityServer.Core.Services;
 
 namespace Thinktecture.IdentityServer.Core.Connect
 {
@@ -21,7 +20,7 @@ namespace Thinktecture.IdentityServer.Core.Connect
         public string ResponseType { get; set; }
         public string ResponseMode { get; set; }
         public Flows Flow { get; set; }
-        public ICoreSettings CoreSettings { get; set; }
+        public CoreSettings CoreSettings { get; set; }
         public ScopeValidator ValidatedScopes { get; set; }
 
         public string ClientId { get; set; }

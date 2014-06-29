@@ -3,35 +3,41 @@
  * see license
  */
 
-using System;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
+using Thinktecture.IdentityServer.Core.Configuration;
 using Thinktecture.IdentityServer.Core.Connect.Results;
-using Thinktecture.IdentityServer.Core.Services;
-using System.Linq;
+using Thinktecture.IdentityServer.Core.Logging;
 
 namespace Thinktecture.IdentityServer.Core.Connect
 {
     [RoutePrefix("connect/userinfo")]
     public class UserInfoEndpointController : ApiController
     {
+        private readonly static ILog Logger = LogProvider.GetCurrentClassLogger();
         private readonly UserInfoResponseGenerator _generator;
-        private readonly ILogger _logger;
         private readonly TokenValidator _tokenValidator;
+        private readonly CoreSettings _settings;
 
-        public UserInfoEndpointController(TokenValidator tokenValidator, UserInfoResponseGenerator generator, ILogger logger)
+        public UserInfoEndpointController(CoreSettings settings, TokenValidator tokenValidator, UserInfoResponseGenerator generator)
         {
             _tokenValidator = tokenValidator;
             _generator = generator;
-
-            _logger = logger;
+            _settings = settings;
         }
 
         [Route]
         public async Task<IHttpActionResult> Get(HttpRequestMessage request)
         {
-            _logger.Start("OIDC userinfo endpoint.");
+            Logger.Info("Start userinfo request");
+
+            if (!_settings.UserInfoEndpoint.Enabled)
+            {
+                Logger.Warn("Endpoint is disabled. Aborting");
+                return NotFound();
+            }
 
             var authorizationHeader = request.Headers.Authorization;
 
@@ -56,7 +62,6 @@ namespace Thinktecture.IdentityServer.Core.Connect
             var scopes = result.Claims.Where(c => c.Type == Constants.ClaimTypes.Scope).Select(c => c.Value);
 
             var payload = await _generator.ProcessAsync(subject, scopes);
-
             return new UserInfoResult(payload);
         }
 
